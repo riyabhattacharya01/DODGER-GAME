@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodger Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            color: #fff;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Hide scrollbars */
+        }
+        h1 {
+            margin-top: 50px;
+            font-size: 3em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+        }
+        div {
+            margin: 20px 0;
+        }
+        button {
+            background: #ffffff;
+            color: #333;
+            border: none;
+            border-radius: 5px;
+            padding: 15px 25px;
+            font-size: 1.2em;
+            margin: 10px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+        button:hover {
+            background: #f39c12;
+            color: #fff;
+            transform: scale(1.05);
+        }
+        button:active {
+            background: #e67e22;
+        }
+        #startButton {
+            display: none;
+            background: #2ecc71;
+            font-size: 1.5em;
+            padding: 20px 40px;
+            margin-top: 20px;
+        }
+        #startButton:hover {
+            background: #27ae60;
+        }
+        #startButton:active {
+            background: #1e8449;
+        }
+        #okButton {
+            display: none;
+            background: #e74c3c;
+            font-size: 1.5em;
+            padding: 20px 40px;
+            margin-top: 20px;
+        }
+        #okButton:hover {
+            background: #c0392b;
+        }
+        #okButton:active {
+            background: #a93226;
+        }
+        canvas { 
+            display: none; 
+            background: #f0f0f0; 
+            position: absolute; /* Ensure canvas is positioned correctly */
+            top: 0;
+            left: 0;
+            width: 100vw; /* Full viewport width */
+            height: 100vh; /* Full viewport height */
+        }
+        #gameOverDisplay {
+            display: none;
+            font-size: 2em;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>DODGER GAME</h1>
+    <div id="menu">
+        <button onclick="selectLevel('easy')">Easy</button>
+        <button onclick="selectLevel('medium')">Medium</button>
+        <button onclick="selectLevel('hard')">Hard</button>
+        <button onclick="selectLevel('expert')">Expert</button>
+    </div>
+    <br>
+    <button id="startButton">Start</button>
+    <button id="okButton" onclick="restartGame()">OK</button>
+    <div id="gameOverDisplay"></div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        let selectedLevel = null;
+        let score = 0;
+        let gameRunning = false; // To keep track of game state
+        let gameLoopInterval;
+        let startTime; // Variable to track the start time of the game
+
+        // Game configuration
+        let playerSpeed;
+        let obstacleTypes;
+        let obstacleFrequency;
+
+        function selectLevel(level) {
+            // Reset previous selection
+            document.querySelectorAll('#menu button').forEach(button => {
+                button.style.background = '#ffffff';
+                button.style.color = '#333';
+            });
+
+            // Set new selection
+            selectedLevel = level;
+            document.querySelector(`button[onclick="selectLevel('${level}')"]`).style.background = '#f39c12';
+            document.querySelector(`button[onclick="selectLevel('${level}')"]`).style.color = '#fff';
+
+            // Show the start button
+            document.getElementById('startButton').style.display = 'inline-block';
+        }
+
+        document.getElementById('startButton').addEventListener('click', function() {
+            // Hide font elements
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('startButton').style.display = 'none';
+            document.querySelector('h1').style.display = 'none'; // Hide the heading
+
+            // Show the game canvas
+            document.getElementById('gameCanvas').style.display = 'block'; 
+
+            // Prevent scrolling
+            document.body.style.overflow = 'hidden';
+
+            // Start the game with the selected level
+            startGame();
+        });
+
+        function restartGame() {
+            // Stop the game if it's running
+            if (gameRunning) {
+                stopGame();
+            }
+
+            // Hide game over display and OK button
+            document.getElementById('gameOverDisplay').style.display = 'none'; 
+            document.getElementById('okButton').style.display = 'none';
+
+            // Show the game canvas
+            document.getElementById('gameCanvas').style.display = 'none'; 
+            document.querySelector('h1').style.display = 'block'; 
+            document.getElementById('menu').style.display = 'block'; 
+            document.getElementById('startButton').style.display = 'none';
+
+            // Allow scrolling
+            document.body.style.overflow = 'auto';
+
+            // Reset game state
+            score = 0;
+        }
+
+        function startGame() {
+            gameRunning = true; // Game is running
+            startTime = Date.now(); // Set the start time of the game
+
+            // Set difficulty settings
+            switch (selectedLevel) {
+                case 'easy':
+                    playerSpeed = 5;
+                    obstacleTypes = [{ width: 50, height: 50, color: 'red', speed: 2 }];
+                    obstacleFrequency = 0.04;
+                    break;
+                case 'medium':
+                    playerSpeed = 7;
+                    obstacleTypes = [{ width: 50, height: 50, color: 'red', speed: 4 }];
+                    obstacleFrequency = 0.05;
+                    break;
+                case 'hard':
+                    playerSpeed = 10;
+                    obstacleTypes = [
+                        { width: 50, height: 50, color: 'red', speed: 4 },
+                        { width: 70, height: 70, color: 'orange', speed: 5 },
+                        { width: 30, height: 30, color: 'purple', speed: 2 }
+                    ];
+                    obstacleFrequency = 0.06;
+                    break;
+                case 'expert':
+                    playerSpeed = 10;
+                    obstacleTypes = [
+                        { width: 50, height: 50, color: 'red', speed: 4 },
+                        { width: 70, height: 70, color: 'orange', speed: 5 },
+                        { width: 30, height: 30, color: 'purple', speed: 2 },
+                        { width: 50, height: 50, color: 'black', speed: 4, type: 'diagonal', moveSpeed: 4 }
+                    ];
+                    obstacleFrequency = 0.07;
+                    break;
+            }
+
+            // Setup
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            // Player
+            const playerWidth = 50;
+            const playerHeight = 50;
+            let playerX = canvas.width / 2 - playerWidth / 2;
+            const playerY = canvas.height - playerHeight - 10;
+
+            // Obstacles
+            let obstacles = [];
+
+            // Control
+            let rightPressed = false;
+            let leftPressed = false;
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight') rightPressed = true;
+                if (e.key === 'ArrowLeft') leftPressed = true;
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if (e.key === 'ArrowRight') rightPressed = false;
+                if (e.key === 'ArrowLeft') leftPressed = false;
+            });
+
+            // Game Loop
+            function gameLoop() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Calculate elapsed time and increase obstacle speed
+                const elapsedTime = (Date.now() - startTime) / 1000; // Time in seconds
+                const speedIncreaseFactor = 0.1; // Factor to increase speed over time
+
+                // Player Movement
+                if (rightPressed && playerX < canvas.width - playerWidth) {
+                    playerX += playerSpeed;
+                }
+                if (leftPressed && playerX > 0) {
+                    playerX -= playerSpeed;
+                }
+
+                // Draw Player
+                ctx.fillStyle = 'blue';
+                ctx.fillRect(playerX, playerY, playerWidth, playerHeight);
+
+                // Spawn Obstacles
+                if (Math.random() < obstacleFrequency) {
+                    const typeIndex = Math.floor(Math.random() * obstacleTypes.length);
+                    const { width, height, color, speed, type, moveSpeed } = obstacleTypes[typeIndex];
+                    const x = Math.random() * (canvas.width - width);
+                    obstacles.push({ x, y: -height, width, height, color, speed: speed + elapsedTime * speedIncreaseFactor, type, moveSpeed });
+                }
+
+                // Move and Draw Obstacles
+                obstacles.forEach((obstacle, index) => {
+                    if (obstacle.type === 'diagonal') {
+                        obstacle.y += obstacle.speed;
+                        obstacle.x += Math.sin(obstacle.y / 20) * obstacle.moveSpeed;
+                    } else {
+                        obstacle.y += obstacle.speed;
+                    }
+
+                    // Draw obstacle
+                    ctx.fillStyle = obstacle.color;
+                    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+
+                    // Remove off-screen obstacles
+                    if (obstacle.y > canvas.height) {
+                        obstacles.splice(index, 1);
+                        score++; // Increase score when an obstacle is avoided
+                    }
+
+                    // Check for collision
+                    if (obstacle.y + obstacle.height > playerY && obstacle.x < playerX + playerWidth && obstacle.x + obstacle.width > playerX) {
+                        gameOver();
+                    }
+                });
+
+                // Draw Score
+                ctx.fillStyle = 'black';
+                ctx.font = '24px Arial';
+                ctx.fillText('Score: ' + score, 10, 30);
+            }
+
+            // Start the game loop
+            gameLoopInterval = setInterval(gameLoop, 1000 / 60); // Run game loop at 60 FPS
+        }
+
+        function stopGame() {
+            gameRunning = false; // Game is stopped
+            clearInterval(gameLoopInterval); // Stop the game loop
+        }
+
+        function gameOver() {
+            // Stop the game
+            stopGame();
+
+            // Show the game over message and OK button
+            document.getElementById('gameOverDisplay').style.display = 'block';
+            document.getElementById('gameOverDisplay').innerText = 'Game Over! Your score: ' + score;
+            document.getElementById('okButton').style.display = 'inline-block';
+            document.getElementById('gameCanvas').style.display = 'none';
+            document.body.style.overflow = 'auto'; // Allow scrolling
+        }
+    </script>
+</body>
+</html>
